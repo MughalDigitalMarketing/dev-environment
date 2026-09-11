@@ -1,0 +1,16 @@
+version: "3.9"
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    image: ghcr.io/MughalDigitalMarketing/dev-environment:latest
+    restart: unless-stopped
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - PORT=3000
+      - JWT_SECRET=${JWT_SECRET}
+    ports:
+      - "3000:3000"

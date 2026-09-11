@@ -1,0 +1,40 @@
+# Production multi-stage Dockerfile
+
+# Builder
+FROM node:18-bullseye-slim AS builder
+WORKDIR /usr/src/app
+ENV NODE_ENV=production
+
+# Install system deps required by native builds
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends build-essential python3 ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy package manifests and install
+COPY package.json pnpm-lock.yaml* ./
+RUN npm ci -g pnpm
+RUN pnpm install --frozen-lockfile
+
+# Copy source and build
+COPY . .
+RUN pnpm run build
+
+# Prune dev dependencies
+RUN pnpm prune --prod
+
+# Runner
+FROM node:18-bullseye-slim AS runner
+WORKDIR /usr/src/app
+ENV NODE_ENV=production
+
+# Minimal runtime dependencies
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY --from=builder /usr/src/app/node_modules ./node_modules
+COPY --from=builder /usr/src/app/dist ./dist
+COPY package.json ./
+
+EXPOSE 3000
+CMD ["node", "dist/index.js"]
